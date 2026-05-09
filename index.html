@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #111; color: #fff; }
+        header { background: #222; padding: 15px; text-align: center; }
+        #player-container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        video { max-width: 100%; background: #000; }
+        #channel-list { width: 300px; max-height: 600px; overflow-y: auto; background: #222; padding: 10px; }
+        .channel { padding: 10px; cursor: pointer; border-bottom: 1px solid #333; }
+        .channel:hover { background: #444; }
+        .container { display: flex; gap: 20px; justify-content: center; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎥 IPTV Platform</h1>
+        <p>Playlist: zatikov.net</p>
+    </header>
+
+    <div class="container">
+        <div id="channel-list">
+            <h2>Channels</h2>
+            <div id="channels"></div>
+        </div>
+
+        <div id="player-container">
+            <video id="video-player" controls autoplay></video>
+            <p id="status">Loading playlist...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        const playlistUrl = 'http://f6b5b312524f.zatikov.net/playlists/uplist/677a8982c1b6bfd02969c3458189717c/playlist.m3u8';
+        const video = document.getElementById('video-player');
+        const channelsDiv = document.getElementById('channels');
+        const status = document.getElementById('status');
+
+        // Simple M3U parser (basic support)
+        async function loadPlaylist() {
+            try {
+                const response = await fetch(playlistUrl);
+                const text = await response.text();
+                parseM3U(text);
+                status.textContent = 'Playlist loaded successfully! Click a channel to play.';
+            } catch (e) {
+                status.textContent = 'Failed to load playlist. Check console.';
+                console.error(e);
+            }
+        }
+
+        function parseM3U(data) {
+            const lines = data.split('\n');
+            let currentChannel = {};
+            channelsDiv.innerHTML = '';
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('#EXTINF:')) {
+                    // Extract title
+                    const titleMatch = line.match(/,(.+)$/);
+                    currentChannel.title = titleMatch ? titleMatch[1].trim() : 'Unknown';
+                } else if (line && !line.startsWith('#')) {
+                    currentChannel.url = line;
+                    if (currentChannel.title) {
+                        const div = document.createElement('div');
+                        div.className = 'channel';
+                        div.textContent = currentChannel.title;
+                        div.onclick = () => playChannel(currentChannel.url, currentChannel.title);
+                        channelsDiv.appendChild(div);
+                        currentChannel = {};
+                    }
+                }
+            }
+        }
+
+        function playChannel(url, title) {
+            status.textContent = `Playing: ${title}`;
+            if (Hls.isSupported()) {
+                if (video.hls) video.hls.destroy();
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                video.hls = hls;
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+            }
+            video.play();
+        }
+
+        // Load playlist on start
+        loadPlaylist();
+    </script>
+</body>
+</html>
